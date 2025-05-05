@@ -34,10 +34,8 @@
       ]
     }
   ],
-  "routes": [
-    {
-      "src": "/favicon.ico",
-      "dest": "/favicon.ico"
-    }
-  ]
+  "rewrites": [
+    { "source": "/favicon.ico", "destination": "/favicon.ico" }
+  ],
+  "cleanUrls": true
 }

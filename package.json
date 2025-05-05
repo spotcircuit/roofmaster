@@ -1,0 +1,41 @@
+{
+  "name": "roofmaster247",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "build:css": "postcss styles/globals.css -o public/output.css"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "framer-motion": "^10.16.4",
+    "next": "14.0.3",
+    "react": "^18",
+    "react-dom": "^18",
+    "react-markdown": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "autoprefixer": "^10.4.14",
+    "eslint": "^8",
+    "eslint-config-next": "14.0.3",
+    "postcss": "^8.4.24",
+    "postcss-cli": "^10.1.0",
+    "tailwindcss": "^3.3.2",
+    "typescript": "^5"
+  },
+  "description": "A comprehensive training platform built with Next.js and TypeScript for RoofMaster 24-7, featuring role-based dashboards for sales representatives and administrators. This platform helps roofing sales professionals improve their skills through structured training modules, interactive content, and performance tracking.",
+  "main": "index.js",
+  "directories": {
+    "lib": "lib"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}

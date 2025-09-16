@@ -90,9 +90,44 @@ my-app/
 - **Collapsible Sections**: Added collapsible sections for better content organization
 - **Progress Tracking**: Added visual progress indicators for module completion
 
-## Current Issues
+## Common Issues & Solutions
 
-- **TypeScript Errors**: Some TypeScript errors in the training videos page need to be resolved
+### Tailwind CSS v4 Layout Issues
+
+**Problem**: Content appears with no padding, stuck to the left side, or Tailwind utilities not working properly.
+
+**Root Cause**: Tailwind CSS v4 introduced CSS layers that require proper configuration. Universal CSS resets like `* { margin: 0; padding: 0; }` can override Tailwind utilities due to specificity issues.
+
+**Solution**: Update `app/globals.css` to use proper CSS layer structure:
+
+```css
+@import "tailwindcss";
+
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    /* Your body styles here */
+  }
+}
+```
+
+**Key Points**:
+- Remove universal `margin: 0; padding: 0;` reset outside of layers
+- Move all base styles into `@layer base`
+- This preserves Tailwind v4's layer system and prevents utility override
+- Applies to padding (`px-4`, `py-6`), margin (`mx-auto`), and layout classes
+
+This issue commonly occurs when upgrading to Tailwind v4 and affects the entire application layout.
+
+## Other Current Issues
+
 - **Mock Data**: The platform currently uses static mock data instead of real backend integration
 - **Video Content**: Video files are simple placeholders and don't contain actual training content
 

@@ -2,6 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Base reset and responsive settings */
+@layer base {
+  * {
+    @apply box-border;
+  }
+
+  html, body {
+    @apply m-0 p-0 w-full h-full;
+  }
+
+  body {
+    @apply min-h-screen overflow-x-hidden;
+  }
+}
+
 /* Glass morphism effects */
 .glass {
   background: rgba(255, 255, 255, 0.25);

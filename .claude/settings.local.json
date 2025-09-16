@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Read(//mnt/c/Users/**)",
+      "Bash(cd:*)",
+      "Bash(pkill:*)",
+      "Bash(npm run dev:*)",
+      "Bash(curl:*)",
+      "Bash(ver)",
+      "Bash(tree:*)",
+      "WebSearch",
+      "WebFetch(domain:neon.com)",
+      "Read(//tmp/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

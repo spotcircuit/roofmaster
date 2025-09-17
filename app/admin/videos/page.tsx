@@ -6,6 +6,7 @@ import { useStackApp, useUser } from '@stackframe/stack';
 import VideoUploadModal from '@/components/VideoUploadModal';
 import QuizModal from '@/components/QuizModal';
 import VideoPreviewModal from '@/components/VideoPreviewModal';
+import { useData } from '@/lib/context/DataContext';
 
 interface Video {
   id: string;
@@ -27,6 +28,7 @@ export default function AdminVideosPage() {
   const router = useRouter();
   const app = useStackApp();
   const user = useUser();
+  const { invalidateCache } = useData();
 
   useEffect(() => {
     // Admin layout already handles auth, but double-check

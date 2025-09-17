@@ -11,7 +11,8 @@
       "Bash(tree:*)",
       "WebSearch",
       "WebFetch(domain:neon.com)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []

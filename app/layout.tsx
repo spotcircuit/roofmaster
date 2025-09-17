@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import StackAuthProvider from './stack-provider'
+import { DataProvider } from '@/lib/context/DataContext'
 
 export const metadata: Metadata = {
   title: 'RoofMaster 24-7 | Apex Sales Pro Training',
@@ -25,9 +26,11 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen bg-slate-900">
         <StackAuthProvider>
-          <div className="min-h-screen flex flex-col">
-            {children}
-          </div>
+          <DataProvider>
+            <div className="min-h-screen flex flex-col">
+              {children}
+            </div>
+          </DataProvider>
         </StackAuthProvider>
       </body>
     </html>

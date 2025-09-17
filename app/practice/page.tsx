@@ -19,63 +19,8 @@ interface Quiz {
 }
 
 export default function PracticePage() {
-  const [quizzes, setQuizzes] = useState<Quiz[]>([
-    {
-      id: 'fundamentals',
-      title: 'Door-to-Door Sales Fundamentals',
-      description: 'Test your knowledge of basic sales principles and techniques',
-      category: 'basics',
-      difficulty: 'easy',
-      questionCount: 20,
-      timeLimit: 30,
-      passingScore: 70,
-      attempts: 0
-    },
-    {
-      id: 'objection-handling',
-      title: 'Mastering Objections',
-      description: 'Practice handling common customer objections and concerns',
-      category: 'objections',
-      difficulty: 'medium',
-      questionCount: 25,
-      timeLimit: 45,
-      passingScore: 75,
-      attempts: 0
-    },
-    {
-      id: 'closing-techniques',
-      title: 'Advanced Closing Strategies',
-      description: 'Master the art of closing deals and securing commitments',
-      category: 'closing',
-      difficulty: 'hard',
-      questionCount: 30,
-      timeLimit: 60,
-      passingScore: 80,
-      attempts: 0
-    },
-    {
-      id: 'rapport-building',
-      title: 'Building Customer Rapport',
-      description: 'Learn to connect with customers and build trust quickly',
-      category: 'rapport',
-      difficulty: 'easy',
-      questionCount: 15,
-      timeLimit: 25,
-      passingScore: 70,
-      attempts: 0
-    },
-    {
-      id: 'comprehensive-assessment',
-      title: 'Comprehensive Sales Assessment',
-      description: 'Complete evaluation covering all aspects of door-to-door sales',
-      category: 'all',
-      difficulty: 'hard',
-      questionCount: 50,
-      timeLimit: 90,
-      passingScore: 85,
-      attempts: 0
-    }
-  ]);
+  const [quizzes, setQuizzes] = useState<Quiz[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedDifficulty, setSelectedDifficulty] = useState('all');
   const router = useRouter();
@@ -88,6 +33,29 @@ export default function PracticePage() {
       app.redirectToSignIn();
     }
   }, [user, app]);
+
+  useEffect(() => {
+    // Fetch quizzes from the database
+    const fetchQuizzes = async () => {
+      try {
+        const response = await fetch('/api/quizzes');
+        const data = await response.json();
+
+        // Just set whatever quizzes we get (empty array is fine)
+        setQuizzes(data.quizzes || []);
+      } catch (error) {
+        // Only log network errors
+        console.error('Network error fetching quizzes:', error);
+        setQuizzes([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (user) {
+      fetchQuizzes();
+    }
+  }, [user]);
 
   const startQuiz = (quiz: Quiz) => {
     // In a real app, this would navigate to the quiz-taking page
@@ -118,8 +86,8 @@ export default function PracticePage() {
     }
   };
 
-  // Show loading while checking auth
-  if (!user) {
+  // Show loading while checking auth or fetching quizzes
+  if (!user || isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
         <div className="text-white text-xl">Loading...</div>
@@ -243,7 +211,11 @@ export default function PracticePage() {
             <div className="text-gray-500 mb-2">
               <span className="text-4xl">📝</span>
             </div>
-            <p className="text-gray-400">No quizzes match your selected filters</p>
+            <p className="text-gray-400">
+              {quizzes.length === 0
+                ? "No quizzes available yet. Check back later!"
+                : "No quizzes match your selected filters"}
+            </p>
           </div>
         )}
 

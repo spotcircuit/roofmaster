@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useData } from '@/lib/context/DataContext';
 
 // Type definition for questions
 type Question = {
@@ -12,21 +13,25 @@ type Question = {
   expectedKeywords?: string[];
 };
 
-interface QuizPreviewModalProps {
+interface QuizTakeModalProps {
   isOpen: boolean;
   onClose: () => void;
   quizId: string;
   quizTitle: string;
 }
 
-export default function QuizPreviewModal({ isOpen, onClose, quizId, quizTitle }: QuizPreviewModalProps) {
+export default function QuizTakeModal({ isOpen, onClose, quizId, quizTitle }: QuizTakeModalProps) {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
   const [showResults, setShowResults] = useState(false);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [quizStarted, setQuizStarted] = useState(false);
 
-  // Fetch quiz data from database
+  // Use cached quiz data from context
+  const { getQuizById } = useData();
+
+  // Fetch quiz data from cache or API
   useEffect(() => {
     const fetchQuizData = async () => {
       if (!isOpen || !quizId) {
@@ -36,12 +41,11 @@ export default function QuizPreviewModal({ isOpen, onClose, quizId, quizTitle }:
 
       try {
         setIsLoading(true);
-        const response = await fetch(`/api/admin/quizzes/${quizId}`);
-        if (response.ok) {
-          const data = await response.json();
+        // Use cached quiz fetching
+        const quiz = await getQuizById(quizId);
+        if (quiz) {
           // Extract questions from the quiz data
-          // Skip the first item if it contains metadata
-          const quizQuestions = data.quiz?.questions || [];
+          const quizQuestions = quiz.questions || [];
           const actualQuestions = quizQuestions.filter((q: any) => !q._metadata);
           setQuestions(actualQuestions);
         } else {
@@ -62,8 +66,9 @@ export default function QuizPreviewModal({ isOpen, onClose, quizId, quizTitle }:
       setCurrentQuestion(0);
       setSelectedAnswers({});
       setShowResults(false);
+      setQuizStarted(false);
     }
-  }, [isOpen, quizId]);
+  }, [isOpen, quizId, getQuizById]);
 
   const handleAnswer = (answer: string) => {
     setSelectedAnswers({ ...selectedAnswers, [currentQuestion]: answer });
@@ -87,6 +92,7 @@ export default function QuizPreviewModal({ isOpen, onClose, quizId, quizTitle }:
     setCurrentQuestion(0);
     setSelectedAnswers({});
     setShowResults(false);
+    setQuizStarted(false);
   };
 
   const calculateScore = () => {
@@ -116,7 +122,9 @@ export default function QuizPreviewModal({ isOpen, onClose, quizId, quizTitle }:
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-white/10">
             <div>
-              <h2 className="text-xl font-semibold text-white">Quiz Preview</h2>
+              <h2 className="text-xl font-semibold text-white">
+                {quizStarted ? 'Quiz in Progress' : 'Start Quiz'}
+              </h2>
               <p className="text-sm text-gray-400 mt-1">{quizTitle}</p>
             </div>
             <button
@@ -133,16 +141,35 @@ export default function QuizPreviewModal({ isOpen, onClose, quizId, quizTitle }:
           <div className="p-6">
             {isLoading ? (
               <div className="text-center py-12">
-                <div className="text-gray-400">Loading quiz questions...</div>
+                <div className="text-gray-400">Loading quiz...</div>
               </div>
             ) : questions.length === 0 ? (
               <div className="text-center py-12">
-                <div className="text-gray-400 mb-4">No questions found for this quiz.</div>
+                <div className="text-gray-400 mb-4">No questions available for this quiz.</div>
                 <button
                   onClick={onClose}
                   className="px-4 py-2 bg-gray-600/20 text-gray-400 rounded-lg hover:bg-gray-600/30 transition-colors border border-gray-600/30"
                 >
                   Close
+                </button>
+              </div>
+            ) : !quizStarted ? (
+              /* Start Screen */
+              <div className="text-center py-12">
+                <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-blue-500/20 mb-6">
+                  <span className="text-4xl">📝</span>
+                </div>
+                <h3 className="text-2xl font-bold text-white mb-4">{quizTitle}</h3>
+                <div className="space-y-2 text-gray-400 mb-8">
+                  <p>{questions.length} Questions</p>
+                  <p>Take your time - no time limit</p>
+                  <p>You can retake this quiz anytime</p>
+                </div>
+                <button
+                  onClick={() => setQuizStarted(true)}
+                  className="px-8 py-3 bg-gradient-to-r from-blue-600 to-cyan-500 text-white rounded-lg hover:from-blue-500 hover:to-cyan-400 transition-all duration-200 shadow-lg hover:shadow-blue-500/25 font-medium"
+                >
+                  Start Quiz
                 </button>
               </div>
             ) : !showResults ? (
@@ -227,7 +254,7 @@ export default function QuizPreviewModal({ isOpen, onClose, quizId, quizTitle }:
                       />
                       {question.expectedKeywords && (
                         <p className="text-xs text-gray-500 mt-2">
-                          AI will evaluate based on key concepts
+                          Your answer will be self-evaluated
                         </p>
                       )}
                     </div>
@@ -261,13 +288,15 @@ export default function QuizPreviewModal({ isOpen, onClose, quizId, quizTitle }:
                   <span className="text-3xl">{calculateScore() >= 70 ? '✓' : '✗'}</span>
                 </div>
                 <h2 className="text-2xl font-bold text-white mb-2">
-                  Preview Complete!
+                  Quiz Complete!
                 </h2>
-                <p className="text-lg text-gray-400 mb-6">
-                  Score: <span className="font-bold text-white">{calculateScore()}%</span>
+                <p className="text-lg text-gray-400 mb-2">
+                  Your Score: <span className="font-bold text-white">{calculateScore()}%</span>
                 </p>
                 <p className="text-sm text-gray-500 mb-8">
-                  This is a preview mode. In actual quiz, responses would be saved and analyzed.
+                  {calculateScore() >= 70
+                    ? 'Great job! You passed the quiz.'
+                    : 'Keep practicing! You can retake this quiz anytime.'}
                 </p>
 
                 <div className="flex justify-center gap-4">
@@ -275,7 +304,7 @@ export default function QuizPreviewModal({ isOpen, onClose, quizId, quizTitle }:
                     onClick={resetQuiz}
                     className="px-6 py-2 bg-blue-600/20 text-blue-400 rounded-lg hover:bg-blue-600/30 transition-colors border border-blue-600/30"
                   >
-                    Try Again
+                    Retake Quiz
                   </button>
                   <button
                     onClick={onClose}

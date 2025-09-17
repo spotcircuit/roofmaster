@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useData } from '@/lib/context/DataContext';
 
 interface Question {
   id?: string;
@@ -43,6 +44,9 @@ export default function QuizModal({ isOpen, onClose, videoId, videoTitle }: Quiz
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showCsvUpload, setShowCsvUpload] = useState(false);
+
+  // Get cache invalidation function from context
+  const { invalidateCache } = useData();
 
   useEffect(() => {
     if (isOpen && videoId) {
@@ -227,6 +231,8 @@ export default function QuizModal({ isOpen, onClose, videoId, videoTitle }: Quiz
       });
 
       if (response.ok) {
+        // Invalidate quiz cache after successful save
+        invalidateCache('quizzes');
         alert('Quiz saved successfully!');
         onClose();
       }

@@ -44,6 +44,8 @@ export default function ManageRolesPage() {
     try {
       const response = await fetch('/api/admin/stack-users');
       const data = await response.json();
+      console.log('Received data from API:', data);
+      console.log('Users array:', data.users);
       setUsers(data.users || []);
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -94,6 +96,8 @@ export default function ManageRolesPage() {
 
           {loading ? (
             <div className="text-white">Loading users...</div>
+          ) : users.length === 0 ? (
+            <div className="text-white">No users found. Check console for debugging info.</div>
           ) : (
             <div className="space-y-4">
               {users.map((user) => (

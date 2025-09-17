@@ -278,3 +278,87 @@
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(107, 114, 128, 0.7);
 }
+
+/* Stack Auth Dark Theme Override - Fix black text on black background */
+/* Target all possible Stack Auth containers */
+[data-stack-component],
+.stack-scope,
+div[class*="stack"],
+div[id*="stack"] {
+  --stack-text-color: white !important;
+  --stack-text-secondary: #94a3b8 !important;
+  --stack-background-color: transparent !important;
+  --stack-card-background: rgba(30, 41, 59, 0.5) !important;
+  --stack-border-color: rgba(255, 255, 255, 0.1) !important;
+  --stack-primary-color: #3b82f6 !important;
+  --stack-primary-hover: #2563eb !important;
+}
+
+/* Force all text to be white - using multiple selectors for specificity */
+[data-stack-component] *,
+.stack-scope *,
+div[class*="stack"] *,
+div[id*="stack"] *,
+body * {
+  color: white !important;
+}
+
+/* Specifically target common text elements */
+h1, h2, h3, h4, h5, h6,
+p, span, label, a, div,
+[data-stack-component] h1,
+[data-stack-component] h2,
+[data-stack-component] h3,
+[data-stack-component] p,
+[data-stack-component] span,
+[data-stack-component] label,
+[data-stack-component] a {
+  color: white !important;
+}
+
+/* Style all input fields on the page */
+input,
+input[type="text"],
+input[type="email"],
+input[type="password"],
+[data-stack-component] input,
+.stack-scope input {
+  background-color: rgba(15, 23, 42, 0.8) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  color: white !important;
+}
+
+input::placeholder {
+  color: #64748b !important;
+}
+
+/* Style all buttons */
+button,
+[data-stack-component] button,
+.stack-scope button {
+  background-color: #3b82f6 !important;
+  color: white !important;
+  border: none !important;
+}
+
+button:hover {
+  background-color: #2563eb !important;
+}
+
+/* Hide sign-up links with multiple selectors */
+a[href*="sign-up"],
+a[href*="signup"],
+a[href*="register"],
+[href*="sign-up"],
+[href*="/handler/sign-up"],
+*:contains("Sign up"),
+*:contains("Don't have an account") {
+  display: none !important;
+}
+
+/* Hide parent containers of sign-up links */
+p:has(> a[href*="sign-up"]),
+div:has(> a[href*="sign-up"]),
+span:has(> a[href*="sign-up"]) {
+  display: none !important;
+}

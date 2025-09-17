@@ -37,7 +37,6 @@ export default function AdminQuizzesPage() {
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
-  const [showCsvUpload, setShowCsvUpload] = useState(false);
   const [selectedQuiz, setSelectedQuiz] = useState<Quiz | null>(null);
   const [previewQuizId, setPreviewQuizId] = useState<string>('');
   const [previewQuizTitle, setPreviewQuizTitle] = useState<string>('');
@@ -67,24 +66,6 @@ export default function AdminQuizzesPage() {
     }
   };
 
-  const handleCsvUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const text = e.target?.result as string;
-      // Parse CSV logic here
-      setNotification({
-        type: 'success',
-        message: 'Quiz questions imported successfully!'
-      });
-      setTimeout(() => setNotification(null), 5000);
-      setShowCsvUpload(false);
-    };
-    reader.readAsText(file);
-    event.target.value = '';
-  };
 
   const downloadTemplate = () => {
     const template = `question,type,optionA,optionB,optionC,optionD,correctAnswer,points
@@ -191,12 +172,6 @@ export default function AdminQuizzesPage() {
             + Create New Quiz
           </button>
           <button
-            onClick={() => setShowCsvUpload(!showCsvUpload)}
-            className="px-6 py-3 bg-green-600/20 text-green-400 border border-green-600/30 rounded-lg hover:bg-green-600/30 transition-all duration-200"
-          >
-            📁 Bulk Upload Questions
-          </button>
-          <button
             onClick={downloadTemplate}
             className="px-6 py-3 bg-gray-600/20 text-gray-400 border border-gray-600/30 rounded-lg hover:bg-gray-600/30 transition-all duration-200"
           >
@@ -204,40 +179,6 @@ export default function AdminQuizzesPage() {
           </button>
         </div>
 
-        {/* CSV Upload Section */}
-        {showCsvUpload && (
-          <div className="mb-8 p-6 bg-slate-800/50 backdrop-blur-sm rounded-xl border border-white/10">
-            <h3 className="text-lg font-semibold text-white mb-4">Bulk Upload Quiz Questions</h3>
-            <div className="space-y-4">
-              <p className="text-sm text-gray-400">
-                Upload a CSV file with questions. Format: question, type, optionA, optionB, optionC, optionD, correctAnswer, points
-              </p>
-
-              <input
-                type="file"
-                accept=".csv"
-                onChange={handleCsvUpload}
-                className="hidden"
-                id="csv-upload"
-              />
-              <label
-                htmlFor="csv-upload"
-                className="inline-block px-6 py-3 bg-blue-600/20 text-blue-400 border border-blue-600/30 rounded-lg hover:bg-blue-600/30 transition-colors cursor-pointer"
-              >
-                Choose CSV File
-              </label>
-
-              <div className="text-xs text-gray-500">
-                <p className="font-medium mb-2">Supported question types:</p>
-                <ul className="list-disc list-inside space-y-1">
-                  <li><strong>multiple_choice</strong> - Provide 4 options (A-D) and correct answer</li>
-                  <li><strong>true_false</strong> - Correct answer should be "true" or "false"</li>
-                  <li><strong>open_ended</strong> - Options become expected keywords for AI evaluation</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Quizzes Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -382,26 +323,53 @@ export default function AdminQuizzesPage() {
           setSelectedQuiz(null);
         }}
         quiz={selectedQuiz}
-        onSave={(quiz) => {
-          // Handle save - in real app would call API
-          if (selectedQuiz) {
-            // Update existing quiz
-            setQuizzes(quizzes.map(q => q.id === selectedQuiz.id ? { ...q, ...quiz } : q));
-          } else {
-            // Add new quiz
-            const newQuiz = {
-              ...quiz,
-              id: Date.now().toString(),
-              createdAt: new Date().toISOString(),
-              isActive: true,
-              questionCount: quiz.questions.length
-            } as Quiz;
-            setQuizzes([...quizzes, newQuiz]);
+        onSave={async (quiz) => {
+          try {
+            if (selectedQuiz) {
+              // Update existing quiz
+              const response = await fetch('/api/admin/quizzes', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  id: selectedQuiz.id,
+                  ...quiz
+                })
+              });
+
+              if (response.ok) {
+                await fetchQuizzes(); // Refresh the list
+                setNotification({
+                  type: 'success',
+                  message: 'Quiz updated successfully!'
+                });
+              } else {
+                throw new Error('Failed to update quiz');
+              }
+            } else {
+              // Create new quiz
+              const response = await fetch('/api/admin/quizzes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(quiz)
+              });
+
+              if (response.ok) {
+                await fetchQuizzes(); // Refresh the list
+                setNotification({
+                  type: 'success',
+                  message: 'Quiz created successfully!'
+                });
+              } else {
+                throw new Error('Failed to create quiz');
+              }
+            }
+          } catch (error) {
+            console.error('Error saving quiz:', error);
+            setNotification({
+              type: 'error',
+              message: selectedQuiz ? 'Failed to update quiz' : 'Failed to create quiz'
+            });
           }
-          setNotification({
-            type: 'success',
-            message: selectedQuiz ? 'Quiz updated successfully!' : 'Quiz created successfully!'
-          });
           setTimeout(() => setNotification(null), 5000);
         }}
       />

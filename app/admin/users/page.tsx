@@ -28,10 +28,19 @@ export default function ManageUsersPage() {
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch('/api/admin/users');
+      const response = await fetch('/api/admin/stack-users');
       if (response.ok) {
         const data = await response.json();
-        setUsers(data.users || []);
+        console.log('Fetched users from Stack Auth:', data);
+        // Map Stack Auth users to match expected format
+        const mappedUsers = data.users?.map((user: any) => ({
+          id: user.id,
+          primary_email: user.primaryEmail,
+          display_name: user.displayName,
+          signed_up_at: user.signedUpAt,
+          server_metadata: user.serverMetadata
+        })) || [];
+        setUsers(mappedUsers);
       } else {
         console.error('Failed to fetch users');
       }
@@ -52,13 +61,12 @@ export default function ManageUsersPage() {
       if (response.ok) {
         // Refresh the users list
         await fetchUsers();
-        alert('User has been made an admin');
+        console.log('User has been made an admin');
       } else {
-        alert('Failed to make user an admin');
+        console.error('Failed to make user an admin');
       }
     } catch (error) {
       console.error('Error making admin:', error);
-      alert('Error making user an admin');
     } finally {
       setActionLoading(null);
     }
@@ -74,13 +82,12 @@ export default function ManageUsersPage() {
       if (response.ok) {
         // Refresh the users list
         await fetchUsers();
-        alert('Admin role has been removed');
+        console.log('Admin role has been removed');
       } else {
-        alert('Failed to remove admin role');
+        console.error('Failed to remove admin role');
       }
     } catch (error) {
       console.error('Error removing admin:', error);
-      alert('Error removing admin role');
     } finally {
       setActionLoading(null);
     }
@@ -100,13 +107,12 @@ export default function ManageUsersPage() {
       if (response.ok) {
         // Remove user from local state
         setUsers(users.filter(u => u.id !== userId));
-        alert('User has been deleted');
+        console.log('User has been deleted');
       } else {
-        alert('Failed to delete user');
+        console.error('Failed to delete user');
       }
     } catch (error) {
       console.error('Error deleting user:', error);
-      alert('Error deleting user');
     } finally {
       setActionLoading(null);
     }

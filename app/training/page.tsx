@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import QuizTakeModal from '@/components/QuizTakeModal';
+import { useData } from '@/lib/context/DataContext';
 
 interface Video {
   id: string;
@@ -11,48 +13,28 @@ interface Video {
   category: string;
   duration: number;
   hasQuiz: boolean;
-  completed: boolean;
-  quizScore?: number;
+  completed?: boolean;
 }
 
 export default function TrainingPage() {
-  const [videos, setVideos] = useState<Video[]>([]);
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
-  const [showQuiz, setShowQuiz] = useState(false);
-  const [quiz, setQuiz] = useState<any>(null);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [quizResult, setQuizResult] = useState<any>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showQuizModal, setShowQuizModal] = useState(false);
+  const [selectedQuiz, setSelectedQuiz] = useState<{ id: string; title: string } | null>(null);
   const [category, setCategory] = useState('all');
   const router = useRouter();
 
-  useEffect(() => {
-    checkAuth();
-    fetchVideos();
-  }, [category]);
+  // Use cached data from context
+  const { videos: allVideos, isLoadingVideos, refreshVideos, getVideoQuiz } = useData();
 
-  const checkAuth = () => {
-    // Remove old auth check - now handled by Stack Auth
-  };
-
-  const fetchVideos = async () => {
-    try {
-      const response = await fetch(`/api/training/videos?category=${category}`);
-      if (response.ok) {
-        const data = await response.json();
-        setVideos(data.videos || []);
-      }
-    } catch (error) {
-      console.error('Error fetching videos:', error);
-    }
-  };
+  // Filter videos by category
+  const videos = category === 'all'
+    ? allVideos
+    : allVideos.filter(v => v.category === category);
 
   const watchVideo = async (video: Video) => {
     setSelectedVideo(video);
-    setShowQuiz(false);
-    setQuizResult(null);
 
-    // Track video watch
+    // Track video watch (optional - not storing for now)
     try {
       await fetch('/api/training/track-video', {
         method: 'POST',
@@ -60,53 +42,25 @@ export default function TrainingPage() {
         body: JSON.stringify({ videoId: video.id }),
       });
     } catch (error) {
-      console.error('Error tracking video:', error);
+      // Silent fail - tracking not essential
     }
   };
 
-  const loadQuiz = async () => {
-    if (!selectedVideo) return;
+  const startQuiz = async () => {
+    if (!selectedVideo || !selectedVideo.hasQuiz) return;
 
+    // Use cached quiz from context
     try {
-      const response = await fetch(`/api/training/videos/${selectedVideo.id}/quiz`);
-      if (response.ok) {
-        const data = await response.json();
-        setQuiz(data.quiz);
-        setShowQuiz(true);
-        setAnswers({});
+      const quiz = await getVideoQuiz(selectedVideo.id);
+      if (quiz) {
+        setSelectedQuiz({
+          id: quiz.id,
+          title: quiz.title || 'Comprehension Quiz'
+        });
+        setShowQuizModal(true);
       }
     } catch (error) {
       console.error('Error loading quiz:', error);
-    }
-  };
-
-  const submitQuiz = async () => {
-    if (!quiz || !selectedVideo) return;
-
-    setIsSubmitting(true);
-    try {
-      const response = await fetch(`/api/training/videos/${selectedVideo.id}/quiz/submit`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ answers }),
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        setQuizResult(result);
-
-        // Update video completion status
-        const updatedVideos = videos.map(v =>
-          v.id === selectedVideo.id
-            ? { ...v, completed: true, quizScore: result.score }
-            : v
-        );
-        setVideos(updatedVideos);
-      }
-    } catch (error) {
-      console.error('Error submitting quiz:', error);
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -160,10 +114,19 @@ export default function TrainingPage() {
 
             <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 backdrop-blur-sm rounded-xl border border-white/10">
               <div className="p-4 border-b border-white/10">
-                <h2 className="font-semibold text-white">Available Videos</h2>
+                <h2 className="font-semibold text-white">Available Videos {videos.length > 0 && `(${videos.length})`}</h2>
               </div>
               <div className="divide-y divide-white/10 max-h-[600px] overflow-y-auto">
-                {videos.map((video) => (
+                {isLoadingVideos ? (
+                  <div className="p-8 text-center">
+                    <div className="text-gray-400">Loading videos...</div>
+                  </div>
+                ) : videos.length === 0 ? (
+                  <div className="p-8 text-center">
+                    <div className="text-gray-400">No videos available in this category</div>
+                  </div>
+                ) : (
+                  videos.map((video) => (
                   <button
                     key={video.id}
                     onClick={() => watchVideo(video)}
@@ -181,11 +144,6 @@ export default function TrainingPage() {
                               ✓ Completed
                             </span>
                           )}
-                          {video.quizScore !== undefined && (
-                            <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded-full border border-blue-500/30">
-                              Quiz: {video.quizScore}%
-                            </span>
-                          )}
                           {video.hasQuiz && !video.completed && (
                             <span className="text-xs bg-gray-600/20 text-gray-300 px-2 py-1 rounded-full border border-gray-600/30">
                               Quiz available
@@ -195,198 +153,96 @@ export default function TrainingPage() {
                       </div>
                     </div>
                   </button>
-                ))}
+                ))
+                )}
               </div>
             </div>
           </div>
 
-          {/* Video Player & Quiz */}
+          {/* Video Player */}
           <div className="lg:col-span-2">
             {selectedVideo ? (
               <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 backdrop-blur-sm rounded-xl border border-white/10">
-                {!showQuiz ? (
-                  <>
-                    <div className="aspect-video bg-black rounded-t-lg">
-                      {selectedVideo.videoUrl.includes('youtube') ? (
+                <div className="aspect-video bg-black rounded-t-lg">
+                  {(() => {
+                    const url = selectedVideo.videoUrl;
+
+                    // YouTube detection
+                    if (url.includes('youtube.com') || url.includes('youtu.be')) {
+                      const embedUrl = url.includes('watch?v=')
+                        ? url.replace('watch?v=', 'embed/')
+                        : url.includes('youtu.be/')
+                        ? url.replace('youtu.be/', 'youtube.com/embed/')
+                        : url;
+                      return (
                         <iframe
-                          src={selectedVideo.videoUrl.replace('watch?v=', 'embed/')}
+                          src={embedUrl}
                           className="w-full h-full"
                           allowFullScreen
                         />
-                      ) : (
-                        <video
-                          src={selectedVideo.videoUrl}
-                          controls
+                      );
+                    }
+
+                    // HeyGen detection
+                    if (url.includes('heygen.com')) {
+                      const videoId = url.split('/videos/')[1]?.split('?')[0];
+                      return (
+                        <iframe
+                          src={`https://app.heygen.com/embeds/${videoId}`}
                           className="w-full h-full"
+                          allowFullScreen
+                          allow="clipboard-write"
                         />
-                      )}
-                    </div>
-                    <div className="p-6">
-                      <h2 className="text-2xl font-bold text-white mb-2">{selectedVideo.title}</h2>
-                      <p className="text-gray-400 mb-4">{selectedVideo.description}</p>
+                      );
+                    }
 
-                      {selectedVideo.hasQuiz && (
-                        <button
-                          onClick={loadQuiz}
-                          className="bg-blue-600/20 text-blue-400 px-6 py-2 rounded-lg hover:bg-blue-600/30 border border-blue-600/30 transition-all duration-200"
-                        >
-                          Take Comprehension Quiz
-                        </button>
-                      )}
-                    </div>
-                  </>
-                ) : (
-                  <div className="p-6">
-                    {!quizResult ? (
-                      <>
-                        <h2 className="text-2xl font-bold text-white mb-4">{quiz?.title}</h2>
-                        <p className="text-gray-400 mb-6">{quiz?.description}</p>
+                    // Vimeo detection
+                    if (url.includes('vimeo.com')) {
+                      const vimeoId = url.split('vimeo.com/')[1]?.split('?')[0];
+                      return (
+                        <iframe
+                          src={`https://player.vimeo.com/video/${vimeoId}`}
+                          className="w-full h-full"
+                          allowFullScreen
+                        />
+                      );
+                    }
 
-                        <div className="space-y-6">
-                          {quiz?.questions?.map((question: any, index: number) => (
-                            <div key={question.id || index} className="bg-white/5 border border-white/10 rounded-lg p-4">
-                              <p className="font-medium text-white mb-3">
-                                {index + 1}. {question.question}
-                              </p>
+                    // Loom detection
+                    if (url.includes('loom.com')) {
+                      const loomId = url.split('/share/')[1]?.split('?')[0];
+                      return (
+                        <iframe
+                          src={`https://www.loom.com/embed/${loomId}`}
+                          className="w-full h-full"
+                          allowFullScreen
+                        />
+                      );
+                    }
 
-                              {question.type === 'multiple_choice' && (
-                                <div className="space-y-2">
-                                  {question.options?.map((option: string, oIndex: number) => (
-                                    <label key={oIndex} className="flex items-center p-2 hover:bg-white/5 rounded cursor-pointer text-gray-300">
-                                      <input
-                                        type="radio"
-                                        name={`question-${index}`}
-                                        value={String.fromCharCode(65 + oIndex)}
-                                        checked={answers[question.id || index] === String.fromCharCode(65 + oIndex)}
-                                        onChange={(e) => setAnswers({
-                                          ...answers,
-                                          [question.id || index]: e.target.value
-                                        })}
-                                        className="mr-3"
-                                      />
-                                      <span className="text-white">{String.fromCharCode(65 + oIndex)}. {option}</span>
-                                    </label>
-                                  ))}
-                                </div>
-                              )}
+                    // Default to HTML5 video for direct video files
+                    return (
+                      <video
+                        src={url}
+                        controls
+                        className="w-full h-full"
+                      />
+                    );
+                  })()}
+                </div>
+                <div className="p-6">
+                  <h2 className="text-2xl font-bold text-white mb-2">{selectedVideo.title}</h2>
+                  <p className="text-gray-400 mb-4">{selectedVideo.description}</p>
 
-                              {question.type === 'true_false' && (
-                                <div className="space-y-2">
-                                  <label className="flex items-center p-2 hover:bg-white/5 rounded cursor-pointer text-gray-300">
-                                    <input
-                                      type="radio"
-                                      name={`question-${index}`}
-                                      value="true"
-                                      checked={answers[question.id || index] === 'true'}
-                                      onChange={(e) => setAnswers({
-                                        ...answers,
-                                        [question.id || index]: e.target.value
-                                      })}
-                                      className="mr-3"
-                                    />
-                                    <span className="text-white">True</span>
-                                  </label>
-                                  <label className="flex items-center p-2 hover:bg-white/5 rounded cursor-pointer text-gray-300">
-                                    <input
-                                      type="radio"
-                                      name={`question-${index}`}
-                                      value="false"
-                                      checked={answers[question.id || index] === 'false'}
-                                      onChange={(e) => setAnswers({
-                                        ...answers,
-                                        [question.id || index]: e.target.value
-                                      })}
-                                      className="mr-3"
-                                    />
-                                    <span className="text-white">False</span>
-                                  </label>
-                                </div>
-                              )}
-
-                              {question.type === 'open_ended' && (
-                                <textarea
-                                  value={answers[question.id || index] || ''}
-                                  onChange={(e) => setAnswers({
-                                    ...answers,
-                                    [question.id || index]: e.target.value
-                                  })}
-                                  rows={4}
-                                  className="w-full px-3 py-2 bg-slate-700/50 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                  placeholder="Type your answer here..."
-                                />
-                              )}
-                            </div>
-                          ))}
-                        </div>
-
-                        <div className="flex justify-between mt-8">
-                          <button
-                            onClick={() => setShowQuiz(false)}
-                            className="px-6 py-2 bg-gray-600/20 text-gray-400 rounded-lg hover:bg-gray-600/30 transition-all duration-200 border border-gray-600/30"
-                          >
-                            Back to Video
-                          </button>
-                          <button
-                            onClick={submitQuiz}
-                            disabled={isSubmitting || Object.keys(answers).length < quiz?.questions?.length}
-                            className="px-6 py-2 bg-blue-600/20 text-blue-400 rounded-lg hover:bg-blue-600/30 transition-all duration-200 border border-blue-600/30 disabled:opacity-50"
-                          >
-                            {isSubmitting ? 'Submitting...' : 'Submit Quiz'}
-                          </button>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="text-center py-8">
-                        <div className={`inline-flex items-center justify-center w-20 h-20 rounded-full mb-4 ${
-                          quizResult.passed ? 'bg-green-500/20' : 'bg-red-500/20'
-                        }`}>
-                          <span className="text-3xl">{quizResult.passed ? '✓' : '✗'}</span>
-                        </div>
-                        <h2 className="text-2xl font-bold text-white mb-2">
-                          {quizResult.passed ? 'Congratulations!' : 'Keep Learning!'}
-                        </h2>
-                        <p className="text-lg text-gray-400 mb-4">
-                          Your Score: <span className="font-bold">{quizResult.score}%</span>
-                        </p>
-                        <p className="text-gray-400 mb-6">
-                          {quizResult.passed
-                            ? `You passed with a score of ${quizResult.score}%. Great job understanding the material!`
-                            : `You scored ${quizResult.score}%. Review the material and try again to improve your comprehension.`}
-                        </p>
-
-                        {quizResult.aiAnalysis && (
-                          <div className="bg-white/5 border border-white/10 rounded-lg p-4 text-left mb-6">
-                            <h3 className="font-semibold text-white mb-2">AI Analysis</h3>
-                            <p className="text-sm text-gray-400">{quizResult.aiAnalysis}</p>
-                          </div>
-                        )}
-
-                        <div className="flex justify-center gap-4">
-                          <button
-                            onClick={() => {
-                              setShowQuiz(false);
-                              setQuizResult(null);
-                            }}
-                            className="px-6 py-2 bg-gray-600/20 text-gray-400 rounded-lg hover:bg-gray-600/30 transition-all duration-200 border border-gray-600/30"
-                          >
-                            Back to Video
-                          </button>
-                          {!quizResult.passed && (
-                            <button
-                              onClick={() => {
-                                setQuizResult(null);
-                                setAnswers({});
-                              }}
-                              className="px-6 py-2 bg-blue-600/20 text-blue-400 rounded-lg hover:bg-blue-600/30 transition-all duration-200 border border-blue-600/30"
-                            >
-                              Retake Quiz
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
+                  {selectedVideo.hasQuiz && (
+                    <button
+                      onClick={startQuiz}
+                      className="bg-blue-600/20 text-blue-400 px-6 py-2 rounded-lg hover:bg-blue-600/30 border border-blue-600/30 transition-all duration-200"
+                    >
+                      Take Quiz
+                    </button>
+                  )}
+                </div>
               </div>
             ) : (
               <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 backdrop-blur-sm rounded-xl border border-white/10 p-12 text-center">
@@ -400,6 +256,19 @@ export default function TrainingPage() {
           </div>
         </div>
       </div>
+
+      {/* Quiz Modal */}
+      {selectedQuiz && (
+        <QuizTakeModal
+          isOpen={showQuizModal}
+          onClose={() => {
+            setShowQuizModal(false);
+            setSelectedQuiz(null);
+          }}
+          quizId={selectedQuiz.id} // Using quiz ID directly
+          quizTitle={selectedQuiz.title}
+        />
+      )}
     </div>
   );
 }

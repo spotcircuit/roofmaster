@@ -22,22 +22,26 @@ export async function GET(request: NextRequest) {
 
     // Parse the JSONB questions and extract metadata
     const formattedQuizzes = quizzes.map(quiz => {
-      const questions = quiz.questions || [];
-      const firstQuestion = questions[0] || {};
+      const allQuestions = quiz.questions || [];
+      const metadata = allQuestions.find(q => q._metadata) || allQuestions[0] || {};
+      // Filter out the metadata item to get actual questions
+      const actualQuestions = allQuestions.filter(q => !q._metadata);
 
       return {
         id: quiz.id,
         videoId: quiz.videoId,
         videoTitle: quiz.videoTitle || 'Standalone Quiz',
-        title: firstQuestion.title || `Quiz ${quiz.id.slice(0, 8)}`,
-        description: firstQuestion.description || '',
-        category: firstQuestion.category || 'general',
-        difficulty: firstQuestion.difficulty || 'medium',
+        title: metadata.title || `Quiz ${quiz.id.slice(0, 8)}`,
+        description: metadata.description || '',
+        category: metadata.category || 'general',
+        difficulty: metadata.difficulty || 'medium',
         passingScore: quiz.passingScore,
-        questionCount: questions.length,
-        questions: questions,
+        questionCount: actualQuestions.length, // Count only actual questions
+        questions: actualQuestions, // Return only actual questions
         createdAt: quiz.createdAt,
-        updatedAt: quiz.updatedAt
+        updatedAt: quiz.updatedAt,
+        timeLimit: metadata.timeLimit,
+        isActive: true // Default to active since we don't have this field in DB yet
       };
     });
 

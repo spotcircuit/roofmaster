@@ -364,11 +364,28 @@ export default function QuizEditModal({ isOpen, onClose, quiz, onSave }: QuizEdi
                   </label>
                   <input
                     type="number"
-                    value={formData.timeLimit}
-                    onChange={(e) => setFormData({ ...formData, timeLimit: parseInt(e.target.value) })}
+                    value={formData.timeLimit || 0}
+                    onChange={(e) => setFormData({ ...formData, timeLimit: parseInt(e.target.value) || 0 })}
                     min="0"
                     className="w-full px-3 py-2 bg-slate-900/50 border border-white/10 rounded-lg text-white focus:outline-none focus:border-blue-500/50"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Link to Video (Optional)
+                  </label>
+                  <select
+                    value={formData.videoId || ''}
+                    onChange={(e) => setFormData({ ...formData, videoId: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-900/50 border border-white/10 rounded-lg text-white focus:outline-none focus:border-blue-500/50"
+                  >
+                    {videos.map((video) => (
+                      <option key={video.id} value={video.id}>
+                        {video.title}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
@@ -389,20 +406,12 @@ export default function QuizEditModal({ isOpen, onClose, quiz, onSave }: QuizEdi
               <div>
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-semibold text-white">Questions ({formData.questions?.length || 0})</h3>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setShowCsvUpload(!showCsvUpload)}
-                      className="px-4 py-2 bg-green-600/20 text-green-400 border border-green-600/30 rounded-lg hover:bg-green-600/30 transition-colors"
-                    >
-                      📁 Bulk Upload
-                    </button>
-                    <button
-                      onClick={addQuestion}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                      + Add Question
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => setShowCsvUpload(!showCsvUpload)}
+                    className="px-4 py-2 bg-green-600/20 text-green-400 border border-green-600/30 rounded-lg hover:bg-green-600/30 transition-colors"
+                  >
+                    📁 Bulk Upload
+                  </button>
                 </div>
 
                 {/* CSV Upload Section */}
@@ -581,20 +590,28 @@ export default function QuizEditModal({ isOpen, onClose, quiz, onSave }: QuizEdi
           </div>
 
           {/* Footer */}
-          <div className="flex justify-end gap-3 p-6 border-t border-white/10">
+          <div className="flex justify-between items-center p-6 border-t border-white/10">
             <button
-              onClick={onClose}
-              className="px-4 py-2 text-gray-300 bg-slate-700/50 rounded-lg hover:bg-slate-700/70 transition-colors"
+              onClick={addQuestion}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
             >
-              Cancel
+              + Add Question
             </button>
-            <button
-              onClick={handleSave}
-              disabled={isSaving || !formData.title || formData.questions.length === 0}
-              className="px-6 py-2 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-lg hover:from-blue-500 hover:to-blue-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-            >
-              {isSaving ? 'Saving...' : quiz ? 'Update Quiz' : 'Create Quiz'}
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={onClose}
+                className="px-4 py-2 text-gray-300 bg-slate-700/50 rounded-lg hover:bg-slate-700/70 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={isSaving || !formData.title || formData.questions.length === 0}
+                className="px-6 py-2 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-lg hover:from-blue-500 hover:to-blue-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                {isSaving ? 'Saving...' : quiz ? 'Update Quiz' : 'Create Quiz'}
+              </button>
+            </div>
           </div>
         </div>
       </div>

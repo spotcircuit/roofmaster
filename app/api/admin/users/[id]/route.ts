@@ -1,54 +1,61 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { neon } from '@neondatabase/serverless';
-
-const sql = neon(process.env.DATABASE_URL!);
-
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
-    const body = await request.json();
-    const { email, name, role } = body;
-
-    const result = await sql`
-      UPDATE users
-      SET email = ${email}, name = ${name}, role = ${role}, updated_at = NOW()
-      WHERE id = ${id}
-      RETURNING id, email, name, role, created_at
-    `;
-
-    if (result.length === 0) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
-    return NextResponse.json(result[0]);
-  } catch (error) {
-    console.error('Error updating user:', error);
-    return NextResponse.json({ error: 'Failed to update user' }, { status: 500 });
-  }
-}
+import { NextResponse } from 'next/server';
+import { stackServerApp } from '@/lib/stack-server';
 
 export async function DELETE(
-  request: NextRequest,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
-    const result = await sql`
-      DELETE FROM users
-      WHERE id = ${id}
-      RETURNING id
-    `;
+    const currentUser = await stackServerApp.getUser();
 
-    if (result.length === 0) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    // Check if current user is admin
+    if (!currentUser || currentUser.serverMetadata?.role !== 'admin') {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    // Await params to avoid Next.js warning
+    const { id: userId } = await params;
+
+    // Don't allow deleting yourself
+    if (userId === currentUser.id) {
+      return NextResponse.json(
+        { error: 'Cannot delete your own account' },
+        { status: 400 }
+      );
+    }
+
+    // Stack Auth doesn't provide a delete method through the SDK
+    // We need to find the user and try to delete them
+    const users = await stackServerApp.listUsers();
+    const userToDelete = users.find(u => u.id === userId);
+
+    if (!userToDelete) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      );
+    }
+
+    // Check if the user object has a delete method
+    if (userToDelete.delete) {
+      await userToDelete.delete();
+    } else {
+      // If no delete method exists, return an error explaining the limitation
+      return NextResponse.json(
+        { error: 'Stack Auth SDK does not support deleting users. Please delete the user directly in the Stack Auth dashboard.' },
+        { status: 501 }
+      );
     }
 
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error deleting user:', error);
-    return NextResponse.json({ error: 'Failed to delete user' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to delete user' },
+      { status: 500 }
+    );
   }
 }

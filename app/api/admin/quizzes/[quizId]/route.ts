@@ -5,32 +5,35 @@ const sql = neon(process.env.DATABASE_URL!);
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ videoId: string }> }
+  { params }: { params: Promise<{ quizId: string }> }
 ) {
   try {
-    const { videoId } = await params;
+    const { quizId } = await params;
 
-    if (!videoId) {
+    if (!quizId) {
       return NextResponse.json(
-        { error: 'Video ID is required' },
+        { error: 'Quiz ID is required' },
         { status: 400 }
       );
     }
 
-    // Fetch quiz linked to this video
     const result = await sql`
       SELECT
         q.id,
+        q.video_id as "videoId",
         q.questions,
-        q.passing_score as "passingScore"
+        q.passing_score as "passingScore",
+        q.created_at as "createdAt",
+        q.updated_at as "updatedAt",
+        v.title as "videoTitle"
       FROM video_quizzes q
-      WHERE q.video_id = ${videoId}
-      LIMIT 1
+      LEFT JOIN training_videos v ON q.video_id = v.id
+      WHERE q.id = ${quizId}
     `;
 
     if (result.length === 0) {
       return NextResponse.json(
-        { error: 'No quiz found for this video' },
+        { error: 'Quiz not found' },
         { status: 404 }
       );
     }
@@ -38,15 +41,22 @@ export async function GET(
     // Parse and format the quiz data
     const quiz = result[0];
     const allQuestions = quiz.questions || [];
-    const metadata = allQuestions.find((q: any) => q._metadata) || {};
+    const metadata = allQuestions.find((q: any) => q._metadata) || allQuestions[0] || {};
     const actualQuestions = allQuestions.filter((q: any) => !q._metadata);
 
     const formattedQuiz = {
       id: quiz.id,
-      title: metadata.title || 'Comprehension Quiz',
-      description: metadata.description || 'Test your understanding of the video content',
+      videoId: quiz.videoId,
+      videoTitle: quiz.videoTitle,
+      title: metadata.title || `Quiz ${quiz.id.slice(0, 8)}`,
+      description: metadata.description || '',
+      category: metadata.category || 'general',
+      difficulty: metadata.difficulty || 'medium',
       passingScore: quiz.passingScore,
-      questions: actualQuestions
+      timeLimit: metadata.timeLimit,
+      questions: actualQuestions, // Return only actual questions
+      createdAt: quiz.createdAt,
+      updatedAt: quiz.updatedAt
     };
 
     return NextResponse.json({ quiz: formattedQuiz });

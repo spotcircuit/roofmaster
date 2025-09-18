@@ -163,6 +163,7 @@ export default function QuizEditModal({ isOpen, onClose, quiz, onSave }: QuizEdi
       }
 
       const newQuestions: Question[] = [];
+      let skippedCount = 0;
 
       // Simple CSV parser that handles quoted values
       const parseCSVLine = (line: string): string[] => {
@@ -191,32 +192,66 @@ export default function QuizEditModal({ isOpen, onClose, quiz, onSave }: QuizEdi
 
         if (values.length < 3) continue;
 
-        const questionText = values[0].replace(/^"|"$/g, '');
-        const type = values[1]?.toLowerCase().replace(/^"|"$/g, '') as 'multiple_choice' | 'true_false' | 'open_ended';
+        const questionText = values[0]?.replace(/^"|"$/g, '').trim();
+        if (!questionText) {
+          skippedCount++;
+          continue; // Skip rows with empty questions
+        }
+
+        const typeValue = values[1]?.toLowerCase().replace(/^"|"$/g, '').trim();
+        const type = (['multiple_choice', 'true_false', 'open_ended'].includes(typeValue)
+          ? typeValue
+          : 'multiple_choice') as 'multiple_choice' | 'true_false' | 'open_ended';
+
+        const points = Math.max(1, parseInt(values[7]) || 1); // Ensure points is at least 1
 
         let question: Question = {
           question: questionText,
-          type: type || 'multiple_choice',
-          points: parseInt(values[7]) || 1,
+          type: type,
+          points: points,
         };
 
         if (type === 'multiple_choice') {
-          question.options = [
-            values[2]?.replace(/^"|"$/g, '') || '',
-            values[3]?.replace(/^"|"$/g, '') || '',
-            values[4]?.replace(/^"|"$/g, '') || '',
-            values[5]?.replace(/^"|"$/g, '') || ''
+          const options = [
+            values[2]?.replace(/^"|"$/g, '').trim() || '',
+            values[3]?.replace(/^"|"$/g, '').trim() || '',
+            values[4]?.replace(/^"|"$/g, '').trim() || '',
+            values[5]?.replace(/^"|"$/g, '').trim() || ''
           ].filter(o => o);
-          question.correctAnswer = values[6]?.replace(/^"|"$/g, '') || 'A';
+
+          // Ensure at least 2 options for multiple choice
+          if (options.length < 2) {
+            skippedCount++;
+            continue; // Skip this question if insufficient options
+          }
+
+          question.options = options;
+          const correctAnswer = values[6]?.replace(/^"|"$/g, '').trim().toUpperCase();
+          // Validate that correct answer corresponds to available options
+          const answerIndex = correctAnswer.charCodeAt(0) - 65; // A=0, B=1, etc.
+          question.correctAnswer = (answerIndex >= 0 && answerIndex < options.length)
+            ? correctAnswer
+            : 'A'; // Default to A if invalid
+
         } else if (type === 'true_false') {
-          question.correctAnswer = values[6]?.toLowerCase().replace(/^"|"$/g, '') || 'true';
+          const answer = values[6]?.toLowerCase().replace(/^"|"$/g, '').trim();
+          question.correctAnswer = (answer === 'true' || answer === 'false') ? answer : 'true';
+
         } else if (type === 'open_ended') {
-          question.expectedKeywords = [
-            values[2]?.replace(/^"|"$/g, ''),
-            values[3]?.replace(/^"|"$/g, ''),
-            values[4]?.replace(/^"|"$/g, ''),
-            values[5]?.replace(/^"|"$/g, '')
+          const keywords = [
+            values[2]?.replace(/^"|"$/g, '').trim(),
+            values[3]?.replace(/^"|"$/g, '').trim(),
+            values[4]?.replace(/^"|"$/g, '').trim(),
+            values[5]?.replace(/^"|"$/g, '').trim()
           ].filter(k => k);
+
+          // Ensure at least one keyword for open-ended questions
+          if (keywords.length === 0) {
+            skippedCount++;
+            continue; // Skip this question if no keywords
+          }
+
+          question.expectedKeywords = keywords;
         }
 
         newQuestions.push(question);
@@ -228,7 +263,9 @@ export default function QuizEditModal({ isOpen, onClose, quiz, onSave }: QuizEdi
       });
 
       setShowCsvUpload(false);
-      alert(`Successfully imported ${newQuestions.length} questions`);
+      const message = `Successfully imported ${newQuestions.length} questions` +
+        (skippedCount > 0 ? `. ${skippedCount} questions were skipped due to validation issues.` : '');
+      alert(message);
     };
 
     reader.readAsText(file);
@@ -237,9 +274,15 @@ export default function QuizEditModal({ isOpen, onClose, quiz, onSave }: QuizEdi
 
   const downloadCsvTemplate = () => {
     const template = `question,type,optionA,optionB,optionC,optionD,correctAnswer,points
-"What is the first step when approaching a door?",multiple_choice,"Knock firmly","Ring the doorbell","Check for 'No Soliciting' signs","Smile","C",1
-"Building rapport is important in sales",true_false,,,,,true,1
-"Describe your approach to handling objections",open_ended,"listen","empathize","address","overcome",,2`;
+"What is the first step when approaching a homeowner's door?",multiple_choice,"Knock loudly","Ring the doorbell","Check for 'No Soliciting' signs first","Walk around the property","C",1
+"You should always maintain eye contact during conversations",true_false,,,,,true,1
+"Describe the key elements of building trust with a homeowner",open_ended,"listen","empathy","honesty","transparency",,2
+"How many seconds do you have to make a first impression?",multiple_choice,"3 seconds","7 seconds","15 seconds","30 seconds","B",1
+"It's acceptable to argue with a homeowner who disagrees",true_false,,,,,false,1
+"What should you do when facing the 'I'm not interested' objection?",open_ended,"acknowledge","understand","redirect","value",,3
+"Which greeting approach is most effective for door-to-door sales?",multiple_choice,"Hi, I'm selling roofing services","Good morning, I noticed your neighbor had roof work done","Hello, do you need a new roof?","Hey there, got a minute?","B",2
+"You should immediately start talking about your services when the door opens",true_false,,,,,false,1
+"Explain how to handle a homeowner who says 'We can't afford it right now'",open_ended,"budget","payment","options","financing",,2`;
 
     const blob = new Blob([template], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);

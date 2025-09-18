@@ -69,9 +69,15 @@ export default function AdminQuizzesPage() {
 
   const downloadTemplate = () => {
     const template = `question,type,optionA,optionB,optionC,optionD,correctAnswer,points
-"What is the first step when approaching a door?",multiple_choice,"Knock firmly","Ring the doorbell","Check for 'No Soliciting' signs","Smile","C",1
-"Building rapport is important in sales",true_false,,,,,true,1
-"Describe your approach to handling objections",open_ended,"listen","empathize","address","overcome",,2`;
+"What is the first step when approaching a homeowner's door?",multiple_choice,"Knock loudly","Ring the doorbell","Check for 'No Soliciting' signs first","Walk around the property","C",1
+"You should always maintain eye contact during conversations",true_false,,,,,true,1
+"Describe the key elements of building trust with a homeowner",open_ended,"listen","empathy","honesty","transparency",,2
+"How many seconds do you have to make a first impression?",multiple_choice,"3 seconds","7 seconds","15 seconds","30 seconds","B",1
+"It's acceptable to argue with a homeowner who disagrees",true_false,,,,,false,1
+"What should you do when facing the 'I'm not interested' objection?",open_ended,"acknowledge","understand","redirect","value",,3
+"Which greeting approach is most effective for door-to-door sales?",multiple_choice,"Hi, I'm selling roofing services","Good morning, I noticed your neighbor had roof work done","Hello, do you need a new roof?","Hey there, got a minute?","B",2
+"You should immediately start talking about your services when the door opens",true_false,,,,,false,1
+"Explain how to handle a homeowner who says 'We can't afford it right now'",open_ended,"budget","payment","options","financing",,2`;
 
     const blob = new Blob([template], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
